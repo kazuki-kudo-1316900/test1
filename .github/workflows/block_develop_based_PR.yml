@@ -1,0 +1,44 @@
+name: Block develop-based PRs to staging and main
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  check-branch-origin:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Git user
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+
+      - name: Check if PR base is staging or main
+        if: >
+          github.event.pull_request.base.ref == 'staging' ||
+          github.event.pull_request.base.ref == 'main'
+        run: |
+          git fetch origin main develop
+
+          # HEAD と origin/develop の共通祖先
+          develop_base_commit=$(git merge-base HEAD origin/develop)
+          # origin/develop の先頭コミット(HEAD) 
+          develop_head_commit=$(git rev-parse origin/develop)
+
+          echo "develop_base_commit: ${develop_base_commit}"
+          echo "develop_head_commit: ${develop_head_commit}"
+
+          # 下記条件は「HEAD が origin/develop を含む履歴上にある(= develop の子孫)」かどうかを判定する例
+          # つまり共通祖先が develop の先頭と同じ => 「HEAD の履歴に develop の先頭が含まれている」
+          if [ "${develop_base_commit}" = "${develop_head_commit}" ]; then
+            echo "This branch includes all commits from develop and is effectively develop-based."
+            echo "PR to staging/main is not allowed."
+            exit 1
+          fi
+
+          echo "This branch is NOT develop-based. OK to proceed."
