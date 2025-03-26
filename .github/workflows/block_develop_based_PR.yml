@@ -2,7 +2,7 @@ name: Check Derived From Main
 
 on:
   pull_request:
-    branches: [staging, develop]
+    branches: [staging, main]
 
 jobs:
   check-derived-from-main:
