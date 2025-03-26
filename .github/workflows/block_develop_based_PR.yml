@@ -1,44 +1,34 @@
-name: Block develop-based PRs to staging and main
+name: Check Derived From Main
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    branches: [staging, develop]
 
 jobs:
-  check-branch-origin:
+  check-derived-from-main:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - name: Set up Git user
+      - name: Fetch main
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
+          git fetch origin main --depth=1
 
-      - name: Check if PR base is staging or main
-        if: >
-          github.event.pull_request.base.ref == 'staging' ||
-          github.event.pull_request.base.ref == 'main'
+      - name: Verify the branch is derived from main
         run: |
-          git fetch origin main develop
+          COMMIT_SHA_MAIN=$(git rev-parse origin/main)
 
-          # HEAD と origin/develop の共通祖先
-          develop_base_commit=$(git merge-base HEAD origin/develop)
-          # origin/develop の先頭コミット(HEAD) 
-          develop_head_commit=$(git rev-parse origin/develop)
+          COMMIT_SHA_MERGE_BASE=$(git merge-base HEAD origin/main)
 
-          echo "develop_base_commit: ${develop_base_commit}"
-          echo "develop_head_commit: ${develop_head_commit}"
+          echo "COMMIT_SHA_MAIN:       $COMMIT_SHA_MAIN"
+          echo "COMMIT_SHA_MERGE_BASE: $COMMIT_SHA_MERGE_BASE"
 
-          # 下記条件は「HEAD が origin/develop を含む履歴上にある(= develop の子孫)」かどうかを判定する例
-          # つまり共通祖先が develop の先頭と同じ => 「HEAD の履歴に develop の先頭が含まれている」
-          if [ "${develop_base_commit}" = "${develop_head_commit}" ]; then
-            echo "This branch includes all commits from develop and is effectively develop-based."
-            echo "PR to staging/main is not allowed."
+          if [ "$COMMIT_SHA_MAIN" != "$COMMIT_SHA_MERGE_BASE" ]; then
+            echo "ERROR: This branch does NOT include the latest changes from main."
             exit 1
           fi
 
-          echo "This branch is NOT develop-based. OK to proceed."
+          echo "SUCCESS: This branch is derived from main."
