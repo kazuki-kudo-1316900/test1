@@ -1,34 +1,32 @@
-name: Check Derived From Main
-
+name: check-is-based-on-main
 on:
   pull_request:
-    branches: [staging, main]
+    branches: [ "staging", "main" ]
 
 jobs:
-  check-derived-from-main:
+  check:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
+      - name: Checkout actual PR commit
         uses: actions/checkout@v2
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Fetch main
+      - name: Fetch origin/main
         run: |
-          git fetch origin main --depth=1
+          git fetch origin main
 
-      - name: Verify the branch is derived from main
+      - name: Compare merge-base
         run: |
-          COMMIT_SHA_MAIN=$(git rev-parse origin/main)
+          MAIN_SHA=$(git rev-parse origin/main)
+          MERGE_BASE=$(git merge-base HEAD origin/main)
+          echo "main tip : $MAIN_SHA"
+          echo "merge-base: $MERGE_BASE"
 
-          COMMIT_SHA_MERGE_BASE=$(git merge-base HEAD origin/main)
-
-          echo "COMMIT_SHA_MAIN:       $COMMIT_SHA_MAIN"
-          echo "COMMIT_SHA_MERGE_BASE: $COMMIT_SHA_MERGE_BASE"
-
-          if [ "$COMMIT_SHA_MAIN" != "$COMMIT_SHA_MERGE_BASE" ]; then
-            echo "ERROR: This branch does NOT include the latest changes from main."
+          if [ "$MERGE_BASE" != "$MAIN_SHA" ]; then
+            echo "PR branch does NOT include the latest main commit."
             exit 1
           fi
 
-          echo "SUCCESS: This branch is derived from main."
+          echo "OK: PR branch includes the latest main commit."
