@@ -25,7 +25,9 @@ jobs:
 
           echo "COMMIT_SHA_MAIN:       $COMMIT_SHA_MAIN"
           echo "COMMIT_SHA_MERGE_BASE: $COMMIT_SHA_MERGE_BASE"
-
+          
+          echo $(git branch)
+          
           if [ "$COMMIT_SHA_MAIN" != "$COMMIT_SHA_MERGE_BASE" ]; then
             echo "ERROR: This branch does NOT include the latest changes from main."
             exit 1
